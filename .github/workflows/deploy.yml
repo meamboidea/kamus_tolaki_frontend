@@ -1,0 +1,107 @@
+name: Deploy Laravel to Hostinger
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv
+          coverage: none
+
+      - name: Copy .env
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+
+      - name: Install Composer Dependencies
+        run: composer install --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      - name: Create SQLite Database
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
+
+      - name: Run Migrations and Tests
+        run: php artisan test
+
+  deploy:
+    name: Build & Deploy
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, bcmath, soap, intl, gd, exif, iconv
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install PHP Production Dependencies
+        run: composer install --no-dev --no-ansi --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Install NPM Dependencies & Build Assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy via Rsync over SSH
+        uses: easingthemes/ssh-deploy@v5.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_KEY }}
+          ARGS: "-rlgoDzvO --delete"
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_PORT: ${{ secrets.SSH_PORT }}
+          REMOTE_USER: ${{ secrets.SSH_USER }}
+          TARGET: ${{ secrets.SSH_TARGET_DIR }}
+          EXCLUDE: "/.git/, /.github/, /node_modules/, /storage/logs/, /storage/framework/cache/, /storage/framework/sessions/, /storage/framework/views/, /database/database.sqlite, .env, id_rsa*"
+
+      - name: Post-Deployment Remote Commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd ${{ secrets.SSH_TARGET_DIR }}
+            
+            # Find PHP path (Use PHP 8.3 specifically if available on Hostinger, fall back to php)
+            if [ -f /usr/bin/php8.3 ]; then
+              PHP_BIN="/usr/bin/php8.3"
+            elif [ -f /opt/alt/php83/usr/bin/php ]; then
+              PHP_BIN="/opt/alt/php83/usr/bin/php"
+            else
+              PHP_BIN="php"
+            fi
+            
+            echo "Using PHP binary: $PHP_BIN"
+            
+            # Run Laravel migrations and optimization cache commands
+            $PHP_BIN artisan migrate --force
+            $PHP_BIN artisan config:cache
+            $PHP_BIN artisan route:cache
+            $PHP_BIN artisan view:cache
+            
+            # Set storage permissions (Hostinger usually sets proper permissions, but ensure storage is writable)
+            chmod -R 775 storage bootstrap/cache
