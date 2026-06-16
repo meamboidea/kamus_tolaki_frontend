@@ -24,16 +24,11 @@ jobs:
           npm run build
 
       - name: Upload build assets ke server (Native SCP)
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-          
-          # Kirim folder public/build langsung ke DEPLOY_PATH/public/
-          scp -P ${{ secrets.SSH_PORT }} -r public/build ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/public/
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r public/build ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/public/
 
       - name: Deploy ke Server Hostinger
         uses: appleboy/ssh-action@v1.0.3
