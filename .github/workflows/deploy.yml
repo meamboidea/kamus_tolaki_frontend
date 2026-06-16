@@ -44,8 +44,9 @@ jobs:
             set -e
             cd ${{ secrets.DEPLOY_PATH }}
 
-            echo "📥 Pull kode terbaru dari GitHub..."
-            git pull origin main
+            echo "📥 Fetch dan Reset ke kode terbaru dari GitHub..."
+            git fetch origin
+            git reset --hard origin/main
 
             echo "📦 Install PHP dependencies..."
             composer install --no-dev --optimize-autoloader --no-interaction
