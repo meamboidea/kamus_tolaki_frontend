@@ -24,11 +24,17 @@ jobs:
           npm run build
 
       - name: Upload build assets ke server (Native SCP)
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r public/build ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/public/
+          
+          # Bersihkan spasi atau baris baru yang tidak sengaja terikut di GitHub Secrets
+          CLEAN_PATH=$(echo "$DEPLOY_PATH" | tr -d '\r\n' | xargs)
+          
+          scp -o StrictHostKeyChecking=no -P ${{ secrets.SSH_PORT }} -r public/build ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${CLEAN_PATH}/public/
 
       - name: Deploy ke Server Hostinger
         uses: appleboy/ssh-action@v1.0.3
