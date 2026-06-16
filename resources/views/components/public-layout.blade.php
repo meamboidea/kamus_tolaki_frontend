@@ -89,14 +89,10 @@
                 <span class="leading-relaxed">© {{ date('Y') }} Penerjemah Bahasa Tolaki. Melestarikan Budaya Lewat Teknologi.</span>
             </div>
             <div class="flex flex-wrap items-center gap-4 justify-center md:justify-end">
-                <a href="https://saweria.co/username" target="_blank" rel="noopener noreferrer" 
-                    class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all duration-150 transform hover:scale-[1.02] cursor-pointer">
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 14a6 6 0 0012 0V8H6v6z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 10h2a2 2 0 012 2v2a2 2 0 01-2 2h-2" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 4h12" />
-                    </svg>
-                    Dukung Penerjemah (Saweria)
+                <a href="{{ route('donasi') }}" wire:navigate 
+                    class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm transition-all duration-150 transform hover:scale-[1.02] cursor-pointer"
+                    style="background-color: #FFDD00 !important; color: #0f172a !important;">
+                    Buy me a ☕
                 </a>
                 <span class="hover:text-brand-600 transition-colors duration-200 cursor-pointer">Syarat & Ketentuan</span>
                 <span class="hover:text-brand-600 transition-colors duration-200 cursor-pointer">Kebijakan Privasi</span>

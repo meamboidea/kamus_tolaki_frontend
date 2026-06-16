@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 // Halaman publik uji (tanpa login).
 Route::view('/', 'publik.terjemah')->name('terjemah');
 Route::view('kamus', 'publik.kamus')->name('kamus');
+Route::view('donasi', 'publik.donasi')->name('donasi');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

@@ -5,9 +5,10 @@ use Livewire\Volt\Volt;
 
 use function Pest\Laravel\get;
 
-test('halaman terjemah & kamus dapat diakses publik', function () {
+test('halaman terjemah & kamus & donasi dapat diakses publik', function () {
     get('/')->assertOk()->assertSee('Uji Terjemahan');
     get('/kamus')->assertOk()->assertSee('Telusur Kamus');
+    get('/donasi')->assertOk()->assertSee('Dukung Pengembangan');
 });
 
 test('terjemah Indonesia→Tolaki menampilkan hasil', function () {
