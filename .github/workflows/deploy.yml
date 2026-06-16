@@ -23,15 +23,17 @@ jobs:
           npm install
           npm run build
 
-      - name: Upload build assets ke server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "public/build"
-          target: ${{ secrets.DEPLOY_PATH }}/public_html/
+      - name: Upload build assets ke server (Native SCP)
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          
+          # Kirim folder public/build langsung ke DEPLOY_PATH/public/
+          scp -P ${{ secrets.SSH_PORT }} -r public/build ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/public/
 
       - name: Deploy ke Server Hostinger
         uses: appleboy/ssh-action@v1.0.3
@@ -48,19 +50,26 @@ jobs:
             git fetch origin
             git reset --hard origin/main
 
+            # Cari php binary spesifik jika tersedia di Hostinger
+            if [ -f /usr/bin/php8.3 ]; then
+              PHP_BIN="/usr/bin/php8.3"
+            elif [ -f /opt/alt/php83/usr/bin/php ]; then
+              PHP_BIN="/opt/alt/php83/usr/bin/php"
+            else
+              PHP_BIN="php"
+            fi
+            
+            echo "Using PHP binary: $PHP_BIN"
+
             echo "📦 Install PHP dependencies..."
-            composer install --no-dev --optimize-autoloader --no-interaction
+            $PHP_BIN /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction || composer install --no-dev --optimize-autoloader --no-interaction
 
             echo "🗄️ Jalankan migrasi database..."
-            php artisan migrate --force
-
-            echo "📂 Sinkronisasi file public ke public_html..."
-            cp -r public/. public_html/
-            cp -r public_html/build/public/build/. public_html/build/ 2>/dev/null || true
+            $PHP_BIN artisan migrate --force
 
             echo "🧹 Clear & cache konfigurasi..."
-            php artisan config:cache
-            php artisan route:cache
-            php artisan view:clear
+            $PHP_BIN artisan config:cache
+            $PHP_BIN artisan route:cache
+            $PHP_BIN artisan view:clear
 
             echo "✅ Deploy selesai!"
