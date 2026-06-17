@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'publik.terjemah')->name('terjemah');
 Route::view('kamus', 'publik.kamus')->name('kamus');
 Route::view('donasi', 'publik.donasi')->name('donasi');
+Route::view('tentang', 'publik.tentang')->name('tentang');
+Route::view('syarat', 'publik.syarat')->name('syarat');
+Route::view('privasi', 'publik.privasi')->name('privasi');
 
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])

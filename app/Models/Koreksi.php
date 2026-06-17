@@ -42,6 +42,12 @@ class Koreksi extends Model
         'utama',
         'suara',
         'penyumbang_id',
+        'ditinjau_oleh',
+        'ditinjau_pada',
+        'alasan_tolak',
+        'dicabut_oleh',
+        'dicabut_pada',
+        'alasan_cabut',
     ];
 
     protected function casts(): array
@@ -50,6 +56,7 @@ class Koreksi extends Model
             'status' => StatusKoreksi::class,
             'utama' => 'boolean',
             'ditinjau_pada' => 'datetime',
+            'dicabut_pada' => 'datetime',
         ];
     }
 
@@ -89,10 +96,21 @@ class Koreksi extends Model
         ]);
     }
 
-    /** Moderator yang meninjau. */
+    /** Moderator yang meninjau (menyetujui/menolak) awal. */
     public function peninjau(): BelongsTo
     {
         return $this->belongsTo(User::class, 'ditinjau_oleh');
+    }
+
+    /** Admin yang mencabut koreksi (untuk audit; approver awal tetap di peninjau). */
+    public function pencabut(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dicabut_oleh');
+    }
+
+    public function scopeDicabut(Builder $query): Builder
+    {
+        return $query->where('status', StatusKoreksi::Superseded);
     }
 
     public function scopePending(Builder $query): Builder

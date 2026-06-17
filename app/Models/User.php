@@ -7,11 +7,13 @@ use App\Enums\Role;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['name', 'email', 'password', 'role'])]
+#[Fillable(['name', 'email', 'password', 'role', 'foto_profil'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -30,6 +32,14 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => Role::class,
         ];
+    }
+
+    /** URL foto profil bila ada, selain itu null (pemanggil pakai fallback inisial). */
+    protected function fotoUrl(): Attribute
+    {
+        return Attribute::get(fn () => $this->foto_profil
+            ? Storage::disk('public')->url($this->foto_profil)
+            : null);
     }
 
     public function isAdmin(): bool

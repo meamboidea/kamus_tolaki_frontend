@@ -66,4 +66,11 @@ $login = function () {
             </x-primary-button>
         </div>
     </form>
+
+    <div class="mt-4 text-center">
+        <a href="{{ route('terjemah') }}" wire:navigate
+           class="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-brand-700 dark:hover:text-brand-400 underline rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500">
+            ← {{ __('Kembali ke Terjemah') }}
+        </a>
+    </div>
 </div>
