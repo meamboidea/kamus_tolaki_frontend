@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\PenyumbangDiblokirException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreKoreksiRequest;
 use App\Models\Koreksi;
+use App\Support\Penyumbang;
 use Illuminate\Http\JsonResponse;
 
 class KoreksiController extends Controller
@@ -15,7 +17,16 @@ class KoreksiController extends Controller
      */
     public function store(StoreKoreksiRequest $request): JsonResponse
     {
-        $koreksi = Koreksi::ajukan($request->validated());
+        try {
+            $koreksi = Koreksi::ajukan([
+                ...$request->validated(),
+                // penyumbang_id dari body (Flutter) bila ada; ip_hash dihitung server.
+                'penyumbang_id' => Penyumbang::id($request),
+                'ip_hash' => Penyumbang::ipHash($request),
+            ]);
+        } catch (PenyumbangDiblokirException $e) {
+            return response()->json(['pesan' => $e->getMessage()], 403);
+        }
 
         return response()->json([
             'id' => $koreksi->id,

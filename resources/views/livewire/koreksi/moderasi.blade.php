@@ -2,6 +2,7 @@
 
 use App\Enums\StatusKoreksi;
 use App\Models\Koreksi;
+use App\Models\PenyumbangDiblokir;
 use Illuminate\Support\Facades\Auth;
 
 use function Livewire\Volt\{computed, state, usesPagination};
@@ -37,6 +38,34 @@ $daftar = computed(function () {
     return $q->with(['peninjau', 'pencabut'])->paginate(15);
 });
 
+// Sinyal moderasi: jumlah koreksi DITOLAK per penyumbang yang tampil di halaman ini.
+// Membantu admin membedakan "satu orang nakal" vs "banyak orang berbeda".
+$tolakanPenyumbang = computed(function () {
+    $ids = collect($this->daftar->items())->pluck('penyumbang_id')->filter()->unique();
+    if ($ids->isEmpty()) {
+        return [];
+    }
+
+    return Koreksi::whereIn('penyumbang_id', $ids)
+        ->where('status', StatusKoreksi::Rejected)
+        ->selectRaw('penyumbang_id, count(*) as c')
+        ->groupBy('penyumbang_id')
+        ->pluck('c', 'penyumbang_id')
+        ->all();
+});
+
+// Himpunan penyumbang_id yang SUDAH diblokir (di antara yang tampil), untuk badge.
+$penyumbangDiblokir = computed(function () {
+    $ids = collect($this->daftar->items())->pluck('penyumbang_id')->filter()->unique();
+    if ($ids->isEmpty()) {
+        return [];
+    }
+
+    return PenyumbangDiblokir::whereIn('penyumbang_id', $ids)
+        ->pluck('penyumbang_id')
+        ->all();
+});
+
 $setujui = function (int $id, bool $utama = false): void {
     $k = Koreksi::findOrFail($id);
     $k->update([
@@ -70,6 +99,44 @@ $cabut = function (int $id): void {
         'dicabut_pada' => now(),
     ]);
     session()->flash('ok', "Dicabut: {$k->teks_sumber} → {$k->tolaki_usulan}");
+};
+
+// Blokir penyumbang — HANYA admin. Tindakan tegas & TERPISAH dari penolakan koreksi:
+// hanya untuk spam/asal-asalan berulang. Mencatat penyumbang_id + ip_hash koreksi ini
+// agar submit berikutnya (web/API) langsung ditolak.
+$blokir = function (int $id): void {
+    abort_unless(Auth::user()->isAdmin(), 403);
+
+    $k = Koreksi::findOrFail($id);
+    if (! $k->penyumbang_id && ! $k->ip_hash) {
+        session()->flash('ok', 'Koreksi ini tidak punya identitas penyumbang, tidak dapat diblokir.');
+
+        return;
+    }
+
+    PenyumbangDiblokir::firstOrCreate(
+        ['penyumbang_id' => $k->penyumbang_id],
+        ['ip_hash' => $k->ip_hash, 'diblokir_oleh' => Auth::id()],
+    );
+
+    session()->flash('ok', "Penyumbang diblokir. Koreksi baru darinya akan otomatis ditolak.");
+};
+
+// Buka blokir penyumbang — HANYA admin.
+$bukaBlokir = function (int $id): void {
+    abort_unless(Auth::user()->isAdmin(), 403);
+
+    $k = Koreksi::findOrFail($id);
+    if (! $k->penyumbang_id && ! $k->ip_hash) {
+        return;
+    }
+
+    PenyumbangDiblokir::query()
+        ->when($k->penyumbang_id, fn ($q) => $q->orWhere('penyumbang_id', $k->penyumbang_id))
+        ->when($k->ip_hash, fn ($q) => $q->orWhere('ip_hash', $k->ip_hash))
+        ->delete();
+
+    session()->flash('ok', 'Blokir penyumbang dibuka.');
 };
 
 ?>
@@ -208,6 +275,43 @@ $cabut = function (int $id): void {
                             </div>
                         @endif
                     </div>
+
+                    {{-- Footer admin: identitas penyumbang + blokir (TERPISAH dari tolak) --}}
+                    @if (auth()->user()->isAdmin() && $k->penyumbang_id)
+                        @php
+                            $tolakan = $this->tolakanPenyumbang[$k->penyumbang_id] ?? 0;
+                            $sudahDiblokir = in_array($k->penyumbang_id, $this->penyumbangDiblokir, true);
+                        @endphp
+                        <div class="mt-3 flex flex-col gap-2 border-t border-dashed border-gray-100 dark:border-gray-700 pt-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex flex-wrap items-center gap-2 text-gray-500 dark:text-gray-400">
+                                <span class="font-mono">penyumbang: {{ \Illuminate\Support\Str::limit($k->penyumbang_id, 8, '…') }}</span>
+                                @if ($tolakan > 0)
+                                    <span class="inline-flex items-center rounded-full bg-orange-50 dark:bg-orange-900/30 px-2 py-0.5 font-medium text-orange-700 dark:text-orange-300">
+                                        {{ $tolakan }} koreksi ditolak sebelumnya
+                                    </span>
+                                @endif
+                                @if ($sudahDiblokir)
+                                    <span class="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 font-semibold text-red-700 dark:text-red-300">
+                                        Diblokir
+                                    </span>
+                                @endif
+                            </div>
+
+                            @if ($sudahDiblokir)
+                                <button wire:click="bukaBlokir({{ $k->id }})"
+                                    wire:confirm="Buka blokir penyumbang ini? Ia bisa mengirim koreksi lagi."
+                                    class="shrink-0 rounded-md bg-gray-50 dark:bg-gray-700/50 px-3 py-1.5 font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    Buka blokir
+                                </button>
+                            @else
+                                <button wire:click="blokir({{ $k->id }})"
+                                    wire:confirm="Blokir penyumbang ini? Hanya untuk spam/asal-asalan — koreksi barunya akan otomatis ditolak. Tindakan ini terpisah dari menolak koreksi."
+                                    class="shrink-0 rounded-md bg-red-600 px-3 py-1.5 font-medium text-white hover:bg-red-700">
+                                    Blokir penyumbang
+                                </button>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>

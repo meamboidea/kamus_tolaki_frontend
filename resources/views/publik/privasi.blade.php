@@ -5,9 +5,9 @@
             ← Kembali ke Terjemah
         </a>
 
-        <article class="privasi-konten rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-10 shadow-sm ring-1 ring-brand-100/50 dark:ring-slate-800">
+        <article class="p-6 bg-white shadow-sm privasi-konten rounded-2xl dark:bg-slate-900 sm:p-10 ring-1 ring-brand-100/50 dark:ring-slate-800">
             <h1>Kebijakan Privasi</h1>
-            <p class="meta">Berlaku sejak 1 Januari 2025 · Versi Beta</p>
+            <p class="meta">Berlaku sejak 16 Juni 2026 · Versi Beta</p>
 
             <p>Kami menghargai privasi Anda. Kebijakan ini menjelaskan data apa yang kami kumpulkan, bagaimana kami menggunakannya, dan hak Anda atas data tersebut saat menggunakan Penerjemah Tolaki.</p>
 

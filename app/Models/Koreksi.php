@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusKoreksi;
+use App\Exceptions\PenyumbangDiblokirException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,7 @@ use Illuminate\Support\Str;
  * @property bool $utama
  * @property int $suara
  * @property string|null $penyumbang_id
+ * @property string|null $ip_hash
  * @property int|null $ditinjau_oleh
  * @property string|null $alasan_tolak
  * @property Carbon|null $ditinjau_pada
@@ -42,6 +44,7 @@ class Koreksi extends Model
         'utama',
         'suara',
         'penyumbang_id',
+        'ip_hash',
         'ditinjau_oleh',
         'ditinjau_pada',
         'alasan_tolak',
@@ -72,9 +75,16 @@ class Koreksi extends Model
      * selain itu buat baru berstatus pending.
      *
      * @param  array<string, mixed>  $data
+     *
+     * @throws PenyumbangDiblokirException bila penyumbang/IP sudah diblokir.
      */
     public static function ajukan(array $data): self
     {
+        // Tolak penyumbang yang diblokir (anti spam). Cek via cookie-id ATAU hash IP.
+        if (PenyumbangDiblokir::diblokir($data['penyumbang_id'] ?? null, $data['ip_hash'] ?? null)) {
+            throw new PenyumbangDiblokirException();
+        }
+
         $norm = self::normalisasi($data['teks_sumber']);
 
         $koreksi = self::query()

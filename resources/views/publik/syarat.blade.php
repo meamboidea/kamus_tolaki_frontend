@@ -5,14 +5,14 @@
             ← Kembali ke Terjemah
         </a>
 
-        <article class="syarat-konten rounded-2xl bg-white dark:bg-slate-900 p-6 sm:p-10 shadow-sm ring-1 ring-brand-100/50 dark:ring-slate-800">
+        <article class="p-6 bg-white shadow-sm syarat-konten rounded-2xl dark:bg-slate-900 sm:p-10 ring-1 ring-brand-100/50 dark:ring-slate-800">
             <h1>Syarat &amp; Ketentuan</h1>
-            <p class="meta">Berlaku sejak 1 Januari 2025 · Versi Beta</p>
+            <p class="meta">Berlaku sejak 16 Juni 2026 · Versi Beta</p>
 
             <p>Dengan mengakses dan menggunakan layanan Penerjemah Tolaki ("Layanan"), Anda menyetujui syarat dan ketentuan berikut. Harap baca dengan saksama.</p>
 
             <h2>1. Tentang Layanan</h2>
-            <p>Penerjemah Tolaki adalah platform digital berbasis AI (RAG — <em>Retrieval-Augmented Generation</em>) yang bertujuan melestarikan dan mendigitalisasi bahasa daerah Tolaki dari Sulawesi Tenggara. Layanan ini bersifat nirlaba dan saat ini tersedia dalam status <strong>Versi Beta</strong>.</p>
+            <p>Penerjemah Tolaki adalah platform digital berbasis AI (RAG — <em>Retrieval-Augmented Generation</em>) yang bertujuan melestarikan dan mendigitalisasi bahasa daerah Tolaki Mekongga dari Sulawesi Tenggara. Layanan ini bersifat nirlaba dan saat ini tersedia dalam status <strong>Versi Beta</strong>.</p>
 
             <h2>2. Penggunaan yang Diizinkan</h2>
             <ul>
