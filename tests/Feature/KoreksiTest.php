@@ -34,13 +34,16 @@ test('koreksi serupa menambah suara, bukan duplikat', function () {
 });
 
 test('endpoint disetujui hanya mengembalikan yang approved', function () {
-    Koreksi::create(['teks_sumber' => 'ini', 'teks_sumber_norm' => 'ini', 'tolaki_usulan' => 'ino', 'status' => StatusKoreksi::Approved]);
+    $disetujui = Koreksi::create(['teks_sumber' => 'ini', 'teks_sumber_norm' => 'ini', 'tolaki_usulan' => 'ino', 'status' => StatusKoreksi::Approved]);
     Koreksi::create(['teks_sumber' => 'itu', 'teks_sumber_norm' => 'itu', 'tolaki_usulan' => 'nggituo', 'status' => StatusKoreksi::Pending]);
 
     get('/api/koreksi/disetujui')
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.tolaki', 'ino');
+        ->assertJsonPath('data.0.tolaki', 'ino')
+        // Kontrak untuk mesin terjemah: id + updated_at wajib ada (embedding inkremental).
+        ->assertJsonPath('data.0.id', $disetujui->id)
+        ->assertJsonPath('data.0.updated_at', $disetujui->updated_at->toIso8601String());
 });
 
 test('panel moderasi: tamu dialihkan, non-moderator 403, admin boleh', function () {

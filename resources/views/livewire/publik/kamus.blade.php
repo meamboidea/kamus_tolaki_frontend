@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\StatusKoreksi;
+use App\Models\Koreksi;
 use App\Services\TerjemahService;
 
 use function Livewire\Volt\{state};
@@ -7,7 +9,8 @@ use function Livewire\Volt\{state};
 state([
     'q' => '',
     'bidang' => 'auto', // 'auto' | 'id' (Indonesia→Tolaki) | 'tolaki' (Tolaki→Indonesia)
-    'hasil' => [],
+    'hasil' => [],          // entri kamus riset (dari FastAPI)
+    'hasilKoreksi' => [],   // kontribusi penutur disetujui (dari DB Laravel) — terpisah
     'memuat' => false,
     'sudahCari' => false,
     'galat' => null,
@@ -18,17 +21,42 @@ $cari = function (): void {
     $this->galat = null;
     if ($this->q === '') {
         $this->hasil = [];
+        $this->hasilKoreksi = [];
         $this->sudahCari = false;
 
         return;
     }
     $this->memuat = true;
+
+    // 1) Kamus riset (terverifikasi) lewat mesin FastAPI.
     try {
         $this->hasil = app(TerjemahService::class)->cari($this->q, $this->bidang);
     } catch (\Throwable $e) {
         $this->hasil = [];
-        $this->galat = 'Gagal mencari. Pastikan layanan terjemah (FastAPI) aktif.';
+        $this->galat = 'Gagal mencari di kamus. Pastikan layanan terjemah (FastAPI) aktif.';
     }
+
+    // 2) Kontribusi penutur (koreksi disetujui) dari DB Laravel — sumber TERPISAH,
+    //    sengaja tidak digabung dengan kamus riset; tetap jalan walau FastAPI mati.
+    $istilah = '%' . $this->q . '%';
+    $bidang = $this->bidang;
+    $this->hasilKoreksi = Koreksi::where('status', StatusKoreksi::Approved)
+        ->where(function ($w) use ($istilah, $bidang) {
+            if ($bidang === 'id') {
+                $w->where('teks_sumber', 'like', $istilah);
+            } elseif ($bidang === 'tolaki') {
+                $w->where('tolaki_usulan', 'like', $istilah);
+            } else {
+                $w->where('teks_sumber', 'like', $istilah)
+                    ->orWhere('tolaki_usulan', 'like', $istilah);
+            }
+        })
+        ->orderByDesc('utama')
+        ->orderByDesc('suara')
+        ->limit(20)
+        ->get(['teks_sumber', 'tolaki_usulan', 'catatan', 'utama', 'suara'])
+        ->toArray();
+
     $this->memuat = false;
     $this->sudahCari = true;
 };
@@ -90,7 +118,7 @@ $pilihBidang = function (string $b): void {
         </div>
     @endif
 
-    @if ($sudahCari && empty($hasil))
+    @if ($sudahCari && empty($hasil) && empty($hasilKoreksi))
         <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-900 p-12 text-center shadow-sm">
             <svg class="mx-auto h-12 w-12 text-slate-300 dark:text-slate-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -102,7 +130,7 @@ $pilihBidang = function (string $b): void {
 
     @if (! empty($hasil))
         <div class="space-y-3">
-            <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Hasil Pencarian ({{ count($hasil) }})</div>
+            <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Kamus Tolaki — Terverifikasi ({{ count($hasil) }})</div>
             <div class="grid gap-3">
                 @foreach ($hasil as $e)
                     <div class="group rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-brand-100/30 dark:border-slate-800/80 transition-all duration-200 hover:shadow-md hover:border-brand-200/50 dark:hover:border-slate-800">
@@ -128,6 +156,46 @@ $pilihBidang = function (string $b): void {
                                         </li>
                                     @endforeach
                                 </ul>
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    {{-- Kontribusi penutur (koreksi disetujui) — SENGAJA dipisah dari kamus riset. --}}
+    @if (! empty($hasilKoreksi))
+        <div class="space-y-3">
+            <div class="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                Kontribusi Penutur ({{ count($hasilKoreksi) }})
+            </div>
+            <div class="flex items-start gap-2 rounded-xl bg-amber-50/60 dark:bg-amber-950/10 border border-amber-200/40 dark:border-amber-900/20 px-3.5 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+                <svg class="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Usulan dari penutur asli yang telah disetujui moderator — <strong>bukan</strong> entri kamus hasil penelitian, melainkan kontribusi komunitas.</span>
+            </div>
+            <div class="grid gap-3">
+                @foreach ($hasilKoreksi as $k)
+                    <div class="rounded-2xl bg-amber-50/40 dark:bg-amber-950/10 p-6 shadow-sm border border-amber-200/50 dark:border-amber-900/30">
+                        <div class="flex flex-wrap items-baseline justify-between gap-3">
+                            <div class="text-xl font-bold text-amber-800 dark:text-amber-300">{{ $k['tolaki_usulan'] }}</div>
+                            <div class="flex items-center gap-1.5">
+                                @if ($k['utama'])
+                                    <span class="rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 px-2.5 py-0.5 text-xs font-medium">utama</span>
+                                @endif
+                                @if (($k['suara'] ?? 0) > 1)
+                                    <span class="rounded-full bg-amber-100/70 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2.5 py-0.5 text-xs font-medium">{{ $k['suara'] }}× diusulkan</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="text-slate-700 dark:text-slate-300 mt-2 text-base leading-relaxed">{{ $k['teks_sumber'] }}</div>
+
+                        @if (! empty($k['catatan']))
+                            <div class="mt-3 border-t border-amber-200/40 dark:border-amber-900/20 pt-2.5 text-sm text-slate-500 dark:text-slate-400">
+                                <span class="font-medium text-amber-700 dark:text-amber-400">Catatan penutur:</span> {{ $k['catatan'] }}
                             </div>
                         @endif
                     </div>

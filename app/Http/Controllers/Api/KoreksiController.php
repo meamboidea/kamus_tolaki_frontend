@@ -38,19 +38,24 @@ class KoreksiController extends Controller
     /**
      * Daftar koreksi yang DISETUJUI — dibaca mesin terjemah (FastAPI) untuk
      * disuntikkan ke RAG. Hanya field yang diperlukan.
+     *
+     * `id` + `updated_at` disertakan agar mesin bisa membangun indeks makna
+     * (embedding) secara inkremental — hanya meng-embed koreksi baru/berubah.
      */
     public function disetujui(): JsonResponse
     {
         $koreksi = Koreksi::query()
             ->disetujui()
             ->orderByDesc('utama')
-            ->get(['teks_sumber', 'teks_sumber_norm', 'tolaki_usulan', 'utama', 'catatan'])
+            ->get(['id', 'teks_sumber', 'teks_sumber_norm', 'tolaki_usulan', 'utama', 'catatan', 'updated_at'])
             ->map(fn (Koreksi $k) => [
+                'id' => $k->id,
                 'indonesia' => $k->teks_sumber,
                 'kunci' => $k->teks_sumber_norm,
                 'tolaki' => $k->tolaki_usulan,
                 'utama' => $k->utama,
                 'catatan' => $k->catatan,
+                'updated_at' => $k->updated_at?->toIso8601String(),
             ]);
 
         return response()->json(['data' => $koreksi]);
